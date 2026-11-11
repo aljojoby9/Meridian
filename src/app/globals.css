@@ -1,0 +1,266 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  height: 100%;
+  background: #07080b;
+  color: #eef2ff;
+  overscroll-behavior: none;
+}
+
+* {
+  border-color: #232938;
+}
+
+::selection {
+  background: rgba(214, 178, 94, 0.3);
+}
+
+/* ------------------------------------------------------------------ */
+/* Motion system — GPU friendly (transform/opacity only, no layout)   */
+/* ------------------------------------------------------------------ */
+
+@keyframes meridian-slide-down {
+  from {
+    transform: translate3d(0, -100%, 0);
+    opacity: 0;
+  }
+  to {
+    transform: translate3d(0, 0, 0);
+    opacity: 1;
+  }
+}
+
+@keyframes meridian-slide-up {
+  from {
+    transform: translate3d(0, 100%, 0);
+    opacity: 0;
+  }
+  to {
+    transform: translate3d(0, 0, 0);
+    opacity: 1;
+  }
+}
+
+@keyframes meridian-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes meridian-rise {
+  from {
+    transform: translate3d(0, 14px, 0) scale(0.985);
+    opacity: 0;
+  }
+  to {
+    transform: translate3d(0, 0, 0) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes meridian-pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgba(214, 178, 94, 0.5);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(214, 178, 94, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(214, 178, 94, 0);
+  }
+}
+
+@keyframes meridian-shimmer {
+  from {
+    background-position: -200% 0;
+  }
+  to {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes meridian-slide-down-out {
+  from {
+    transform: translate3d(0, 0, 0);
+    opacity: 1;
+  }
+  to {
+    transform: translate3d(0, -105%, 0);
+    opacity: 0;
+  }
+}
+
+.animate-slide-down {
+  animation: meridian-slide-down 380ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.animate-slide-down-out {
+  animation: meridian-slide-down-out 300ms cubic-bezier(0.4, 0, 1, 1) both;
+}
+
+.animate-slide-up {
+  animation: meridian-slide-up 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.animate-fade-in {
+  animation: meridian-fade-in 260ms ease-out both;
+}
+
+.animate-rise {
+  animation: meridian-rise 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.animate-pulse-ring {
+  animation: meridian-pulse-ring 2.2s ease-out infinite;
+}
+
+.shimmer {
+  background-image: linear-gradient(
+    100deg,
+    rgba(255, 255, 255, 0) 20%,
+    rgba(255, 255, 255, 0.06) 50%,
+    rgba(255, 255, 255, 0) 80%
+  );
+  background-size: 200% 100%;
+  animation: meridian-shimmer 1.6s linear infinite;
+}
+
+/* Stagger helper for seat rows */
+.stagger-children > * {
+  animation: meridian-rise 300ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.stagger-children > *:nth-child(1) { animation-delay: 0ms; }
+.stagger-children > *:nth-child(2) { animation-delay: 35ms; }
+.stagger-children > *:nth-child(3) { animation-delay: 70ms; }
+.stagger-children > *:nth-child(4) { animation-delay: 105ms; }
+.stagger-children > *:nth-child(5) { animation-delay: 140ms; }
+.stagger-children > *:nth-child(n + 6) { animation-delay: 170ms; }
+
+/* ------------------------------------------------------------------ */
+/* VR preview — two lenses over the stereo pair. No extra GPU loop.   */
+/* ------------------------------------------------------------------ */
+
+/* Headset "iris open" flash when entering spatial mode */
+@keyframes meridian-iris {
+  0% {
+    clip-path: circle(4% at 50% 46%);
+    opacity: 1;
+  }
+  65% {
+    opacity: 0.55;
+  }
+  100% {
+    clip-path: circle(76% at 50% 46%);
+    opacity: 0;
+  }
+}
+
+.vr-iris {
+  animation: meridian-iris 700ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Two lenses. Each radial sits on one eye of the side-by-side pair. */
+.vr-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 420ms ease-out;
+  background:
+    radial-gradient(68% 78% at 25% 46%, transparent 46%, rgba(2, 4, 9, 0.78) 76%),
+    radial-gradient(68% 78% at 75% 46%, transparent 46%, rgba(2, 4, 9, 0.78) 76%);
+}
+
+.vr-vignette[data-vr="on"] {
+  opacity: 1;
+}
+
+/* The 4px bar between the eyes. Hidden until VR is on. */
+.vr-bridge {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  z-index: 10;
+  width: 4px;
+  pointer-events: none;
+  background: #05070d;
+  opacity: 0;
+  transform: translateX(-50%);
+}
+
+.vr-bridge[data-vr="on"] {
+  opacity: 1;
+}
+
+/* The metrics card sits on the left eye. Hide it while the pair is showing. */
+[data-vr="on"] [data-chrome="metrics"] {
+  opacity: 0;
+}
+
+@keyframes meridian-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.animate-blink {
+  animation: meridian-blink 1.6s ease-in-out infinite;
+}
+
+/* ------------------------------------------------------------------ */
+/* Resizable bottom panel                                             */
+/* ------------------------------------------------------------------ */
+
+/* Height springs only on release; while dragging we set height directly
+   (no transition) so the drag tracks the pointer 1:1 with zero lag. */
+.panel-card {
+  transition: height 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.panel-card[data-resizing="true"] {
+  transition: none;
+}
+
+body.panel-resizing {
+  cursor: ns-resize;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Freeze the WebGL canvas during a resize drag (no wasted frames) */
+body.panel-resizing canvas {
+  pointer-events: none;
+}
+
+/* Content density steps driven by the panel's current height */
+.panel-card[data-size="compact"] .panel-secondary,
+.panel-card[data-size="compact"] .panel-note {
+  display: none;
+}
+
+/* Respect reduced-motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
