@@ -1,0 +1,275 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+  OPERATOR
+}
+
+enum SeatType {
+  STANDARD
+  RECLINER
+  PREMIUM
+  ACCESSIBLE
+}
+
+enum ShowFormat {
+  TWO_D
+  THREE_D
+  IMAX
+  DOLBY
+}
+
+enum ShowSeatStatus {
+  AVAILABLE
+  HELD
+  BOOKED
+  BLOCKED
+}
+
+enum BookingStatus {
+  PENDING_PAYMENT
+  CONFIRMED
+  CANCELLED
+  EXPIRED
+  REFUNDED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  REFUNDED
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  passwordHash  String?
+  role          Role      @default(USER)
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts      Account[]
+  sessions      Session[]
+  heldSeats     ShowSeat[] @relation("HeldBy")
+  bookings      Booking[]
+}
+
+model Account {
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([provider, providerAccountId])
+}
+
+model Session {
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@id([identifier, token])
+}
+
+model Cinema {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  city      String
+  address   String?
+  timezone  String   @default("UTC")
+  imageUrl  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  halls     Hall[]
+}
+
+model Hall {
+  id            String   @id @default(cuid())
+  cinemaId      String
+  name          String
+  // Physical/layout config used by admin and 3D camera math
+  rows          Int
+  seatsPerRow   Int
+  screenWidthM  Float    @default(12)
+  screenHeightM Float    @default(5)
+  // Hall coordinate system: origin at screen center projected to front floor line
+  hallDepthM    Float    @default(18)
+  hallWidthM    Float    @default(16)
+  rowSpacingM   Float    @default(1.1)
+  seatSpacingM  Float    @default(0.55)
+  firstRowDistanceM Float @default(3.0)
+  eyeHeightM    Float    @default(1.2)
+  layoutJson    Json?    // aisles, gaps, custom per-seat overrides
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  cinema        Cinema   @relation(fields: [cinemaId], references: [id], onDelete: Cascade)
+  seats         Seat[]
+  shows         Show[]
+
+  @@unique([cinemaId, name])
+  @@index([cinemaId])
+}
+
+model Seat {
+  id            String   @id @default(cuid())
+  hallId        String
+  rowLabel      String   // A, B, C...
+  rowIndex      Int      // 0-based from screen
+  number        Int      // 1-based within row
+  colIndex      Int      // 0-based within row
+  type          SeatType @default(STANDARD)
+  priceModifier Int      @default(0) // cents
+  // Local 3D coordinates in metres relative to hall origin (screen center floor)
+  x             Float
+  y             Float
+  z             Float    // distance/depth from screen plane
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  hall          Hall     @relation(fields: [hallId], references: [id], onDelete: Cascade)
+  showSeats     ShowSeat[]
+
+  @@unique([hallId, rowLabel, number])
+  @@index([hallId, rowIndex, colIndex])
+}
+
+model Movie {
+  id          String   @id @default(cuid())
+  title       String
+  slug        String   @unique
+  synopsis    String?
+  durationMin Int
+  rating      String?
+  posterUrl   String?
+  trailerUrl  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  shows       Show[]
+}
+
+model Show {
+  id          String     @id @default(cuid())
+  movieId     String
+  hallId      String
+  startsAt    DateTime
+  format      ShowFormat @default(TWO_D)
+  basePrice   Int        // cents
+  currency    String     @default("usd")
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  movie       Movie      @relation(fields: [movieId], references: [id], onDelete: Cascade)
+  hall        Hall       @relation(fields: [hallId], references: [id], onDelete: Cascade)
+  showSeats   ShowSeat[]
+  bookings    Booking[]
+
+  @@index([hallId, startsAt])
+  @@index([movieId, startsAt])
+}
+
+model ShowSeat {
+  id            String         @id @default(cuid())
+  showId        String
+  seatId        String
+  status        ShowSeatStatus @default(AVAILABLE)
+  price         Int            // cents, resolved at show creation = base + modifier
+  heldByUserId  String?
+  holdExpiresAt DateTime?
+  holdToken     String?        @unique
+  bookingId     String?
+  version       Int            @default(0)
+  updatedAt     DateTime       @updatedAt
+
+  show          Show           @relation(fields: [showId], references: [id], onDelete: Cascade)
+  seat          Seat           @relation(fields: [seatId], references: [id], onDelete: Cascade)
+  heldByUser    User?          @relation("HeldBy", fields: [heldByUserId], references: [id], onDelete: SetNull)
+  booking       Booking?       @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+
+  @@unique([showId, seatId])
+  @@index([showId, status])
+  @@index([holdExpiresAt])
+  @@index([heldByUserId])
+}
+
+model Booking {
+  id                    String        @id @default(cuid())
+  userId                String
+  showId                String
+  status                BookingStatus @default(PENDING_PAYMENT)
+  totalAmount           Int           // cents
+  currency              String        @default("usd")
+  stripeCheckoutSessionId String?     @unique
+  stripePaymentIntentId String?
+  confirmationCode      String        @unique @default(cuid())
+  expiresAt             DateTime?
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  user                  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  show                  Show          @relation(fields: [showId], references: [id], onDelete: Cascade)
+  showSeats             ShowSeat[]
+  tickets               Ticket[]
+  payment               Payment?
+
+  @@index([userId, createdAt])
+  @@index([showId])
+}
+
+model Ticket {
+  id          String   @id @default(cuid())
+  bookingId   String
+  showSeatId  String?  @unique
+  seatLabel   String   // e.g. D7
+  qrPayload   String   @unique
+  issuedAt    DateTime @default(now())
+
+  booking     Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId])
+}
+
+model Payment {
+  id                    String        @id @default(cuid())
+  bookingId             String        @unique
+  provider              String        @default("stripe")
+  status                PaymentStatus @default(PENDING)
+  amount                Int
+  currency              String        @default("usd")
+  stripeCheckoutSessionId String?
+  stripePaymentIntentId String?
+  rawEvent              Json?
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  booking               Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+}
