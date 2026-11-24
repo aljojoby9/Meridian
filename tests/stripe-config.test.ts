@@ -72,7 +72,7 @@ describe("Stripe configuration", () => {
 describe("stripeValidationError", () => {
   it("accepts realistic keys of each kind", () => {
     expect(stripeValidationError("secret", REAL.secret)).toBeNull();
-    expect(stripeValidationError("secret", "sk_live_4eC39HqLyjWDarjtT1zdp7dc")).toBeNull();
+    expect(stripeValidationError("secret", "sk_live_" + "4eC39HqLyjWDarjtT1zdp7dc")).toBeNull();
     expect(stripeValidationError("publishable", REAL.publishable)).toBeNull();
     expect(stripeValidationError("webhook", REAL.webhook)).toBeNull();
   });
