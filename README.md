@@ -26,47 +26,98 @@ The hall, the seat camera, and the side-by-side VR pair are rendered with Three.
 ## Prerequisites
 
 - Node.js 20 or newer
-- Docker, for local PostgreSQL
+- PostgreSQL 16 (Docker is the easy way; a local install works too)
 - Stripe test keys, when you want to complete a payment
 
-## Local setup
+## Run with PostgreSQL
 
-1. Install dependencies.
+The app keeps cinemas, shows, seats, holds, and bookings in PostgreSQL. Prisma connects with `DATABASE_URL`.
 
-   ```bash
-   npm install
-   ```
+### 1. Install dependencies
 
-2. Start PostgreSQL. Compose creates the user, password, and database `meridian` on port 5432.
+```bash
+npm install
+```
 
-   ```bash
-   docker compose up -d
-   ```
+### 2. Start PostgreSQL
 
-   Any PostgreSQL 16 instance with those same credentials works. On Windows, point `DATABASE_URL` at `127.0.0.1`. `localhost` can resolve to IPv6 first, and a server bound to IPv4 will refuse that connection.
+**Docker (recommended)**
 
-3. Create the environment file.
+From the project folder:
 
-   ```bash
-   cp .env.example .env
-   ```
+```bash
+docker compose up -d
+```
 
-   Set `AUTH_SECRET` (`openssl rand -base64 32`). Add Stripe test keys when you want live checkout. The dev server listens on port 3001, and `.env.example` already uses that origin for `AUTH_URL` and `NEXT_PUBLIC_APP_URL`.
+That starts Postgres 16 and creates:
 
-4. Create the schema and seed the demo cinema.
+| | |
+| --- | --- |
+| Host | `127.0.0.1` |
+| Port | `5432` |
+| User | `meridian` |
+| Password | `meridian` |
+| Database | `meridian` |
 
-   ```bash
-   npm run db:push
-   npm run db:seed
-   ```
+Check that it is up:
 
-5. Start the app.
+```bash
+docker compose ps
+```
 
-   ```bash
-   npm run dev
-   ```
+Stop it later with `docker compose down`. Add `-v` only if you also want to delete the data volume.
 
-   Open [http://localhost:3001](http://localhost:3001). A seeded show is at `/shows/seed-show-1`.
+**PostgreSQL already installed**
+
+Create the same user and database (psql, pgAdmin, or any client):
+
+```sql
+CREATE USER meridian WITH PASSWORD 'meridian';
+CREATE DATABASE meridian OWNER meridian;
+```
+
+If port 5432 is already taken, use another port and put that port in `DATABASE_URL`.
+
+### 3. Point the app at the database
+
+```bash
+cp .env.example .env
+```
+
+On Windows PowerShell:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+`.env.example` already has the Docker connection string:
+
+```text
+DATABASE_URL="postgresql://meridian:meridian@127.0.0.1:5432/meridian?schema=public&sslmode=disable"
+```
+
+Use `127.0.0.1`, not `localhost`, on Windows. `localhost` can resolve to IPv6 first, and a server listening on IPv4 will refuse the connection.
+
+Set `AUTH_SECRET` (`openssl rand -base64 32`). Stripe keys can wait; checkout stays in demo mode until all three are real. The dev server uses port 3001, which `.env.example` already sets for `AUTH_URL` and `NEXT_PUBLIC_APP_URL`.
+
+### 4. Create the tables and seed demo data
+
+```bash
+npm run db:push
+npm run db:seed
+```
+
+`db:push` applies `prisma/schema.prisma`. `db:seed` loads a demo cinema, shows, seats, and the two login accounts below.
+
+### 5. Start the app
+
+```bash
+npm run dev
+```
+
+Open [http://localhost:3001](http://localhost:3001). A seeded show is at `/shows/seed-show-1`.
+
+If Prisma says it cannot reach the database, confirm Postgres is running and that `DATABASE_URL` matches the user, password, host, port, and database name.
 
 ## Demo accounts
 
