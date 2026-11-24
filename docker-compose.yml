@@ -16,6 +16,22 @@ services:
       timeout: 5s
       retries: 10
 
+  app:
+    build: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      # Inside the compose network Postgres is reachable as "postgres", not 127.0.0.1.
+      DATABASE_URL: postgresql://meridian:meridian@postgres:5432/meridian?schema=public&sslmode=disable
+      AUTH_TRUST_HOST: "true"
+      AUTH_URL: http://localhost:${APP_PORT:-3001}
+      NEXT_PUBLIC_APP_URL: http://localhost:${APP_PORT:-3001}
+    ports:
+      - "${APP_PORT:-3001}:3001"
+
   # Optional: enable Redis for distributed rate limiting / faster hold coordination.
   # redis:
   #   image: redis:7-alpine

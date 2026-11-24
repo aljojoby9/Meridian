@@ -29,7 +29,26 @@ The hall, the seat camera, and the side-by-side VR pair are rendered with Three.
 - PostgreSQL 16 (Docker is the easy way; a local install works too)
 - Stripe test keys, when you want to complete a payment
 
-## Run with PostgreSQL
+## Run everything with Docker
+
+The quickest way to try the app. Compose starts PostgreSQL and the Next.js app together. You only need Docker.
+
+```bash
+cp .env.example .env        # PowerShell: Copy-Item .env.example .env
+docker compose up -d --build
+```
+
+Open [http://localhost:3001](http://localhost:3001). On start the app container creates the tables, loads the demo data, and runs the dev server. The first build takes a few minutes.
+
+- Different port (for example if 3001 is busy): `APP_PORT=3002 docker compose up -d --build` (PowerShell: `$env:APP_PORT=3002; docker compose up -d --build`), then open that port.
+- Follow logs: `docker compose logs -f app`
+- Stop: `docker compose down`. Add `-v` to also delete the database volume.
+- Compose sets `DATABASE_URL` to the `postgres` service for you; the value in `.env` is only used when you run the app outside Docker.
+- The container runs the dev server and has no source bind mount, so rebuild after code changes: `docker compose up -d --build`.
+
+To run only the database in Docker and the app on your machine, follow the steps below.
+
+## Run with PostgreSQL (app on your machine)
 
 The app keeps cinemas, shows, seats, holds, and bookings in PostgreSQL. Prisma connects with `DATABASE_URL`.
 
