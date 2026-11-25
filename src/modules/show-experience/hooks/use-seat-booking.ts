@@ -40,14 +40,15 @@ export function useSeatBooking({
     setHoldExpiresAt(null);
   }, []);
 
+  /** Hold one seat. Resolves to the new hold token, or `null` when the hold failed. */
   const holdSeat = useCallback(
-    async (seatId: string, attempt = 0): Promise<boolean> => {
+    async (seatId: string, attempt = 0): Promise<string | null> => {
       const { ok, status, data } = await requestHold(showId, [seatId]);
 
       if (ok) {
         setHoldToken(data.holdToken);
         setHoldExpiresAt(data.expiresAt);
-        return true;
+        return data.holdToken as string;
       }
 
       // 409 = seat was taken between render and click -> re-sync and retry
@@ -55,13 +56,13 @@ export function useSeatBooking({
       // case and should not read as a hard failure).
       if (status === 409 && attempt < MAX_HOLD_RETRIES) {
         const fresh = await refreshSeats();
-        if (!fresh) return false;
+        if (!fresh) return null;
         const stillFree = fresh.find((s) => s.seatId === seatId && s.status === "AVAILABLE");
         if (!stillFree) {
           setError("That seat was just taken. Pick another one.");
           clearHold();
           await refreshSeats();
-          return false;
+          return null;
         }
         await new Promise((r) => setTimeout(r, 180 * (attempt + 1)));
         return holdSeat(seatId, attempt + 1);
@@ -69,12 +70,12 @@ export function useSeatBooking({
 
       if (status === 401) {
         router.push(`/signin?callbackUrl=/shows/${showId}`);
-        return false;
+        return null;
       }
 
       setError(data.error || "Could not hold that seat. Please try another.");
       clearHold();
-      return false;
+      return null;
     },
     [showId, refreshSeats, router, clearHold],
   );
@@ -90,9 +91,9 @@ export function useSeatBooking({
       if (seat.status === "BOOKED" || seat.status === "BLOCKED") return;
       setIsHolding(true);
       try {
-        const ok = await holdSeat(seat.seatId);
+        const token = await holdSeat(seat.seatId);
         await refreshSeats();
-        if (ok) notify(`Seat ${seat.rowLabel}${seat.number} held for 10 minutes.`);
+        if (token) notify(`Seat ${seat.rowLabel}${seat.number} held for 10 minutes.`);
       } finally {
         setIsHolding(false);
       }
@@ -106,16 +107,19 @@ export function useSeatBooking({
       router.push(`/signin?callbackUrl=/shows/${showId}`);
       return;
     }
-    if (!holdToken) {
+    // Use the token returned by a re-hold directly: the `holdToken` state in
+    // this closure stays stale until the next render.
+    let token = holdToken;
+    if (!token) {
       // Hold was lost (expired or released) -> re-hold the same seat once.
       setError("Securing your seat…");
-      const ok = await holdSeat(selectedSeat.seatId);
-      if (!ok) return;
+      token = await holdSeat(selectedSeat.seatId);
+      if (!token) return;
     }
     setIsCheckingOut(true);
     setError(null);
     try {
-      const { ok, data } = await requestCheckout(showId, holdToken);
+      const { ok, data } = await requestCheckout(showId, token);
       if (!ok || !data.url) {
         setError(data.error || "Checkout could not be started");
         setIsCheckingOut(false);

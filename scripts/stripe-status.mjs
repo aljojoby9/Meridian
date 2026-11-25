@@ -8,6 +8,13 @@
  */
 import { getStripeConfigStatus } from "../src/modules/booking/infrastructure/stripe/stripe-config.ts";
 
+// tsx does not read .env, so load it here (already-set variables win).
+try {
+  process.loadEnvFile(new URL("../.env", import.meta.url));
+} catch {
+  /* no .env file: report from the process environment only */
+}
+
 const s = getStripeConfigStatus();
 
 console.log(`Mode: ${s.mode === "live" ? "LIVE (checkout uses real Stripe keys)" : "DEMO (placeholders or missing values)"}`);

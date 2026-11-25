@@ -10,7 +10,8 @@ export const serverEnv = {
 
   /** Public origin used to build Stripe redirect URLs. */
   appOrigin(): string {
-    return process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    // Same port as `npm run dev` and the Docker image.
+    return process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3001";
   },
 
   stripeSecretKey(): string | undefined {

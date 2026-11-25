@@ -19,9 +19,13 @@ export function earliestHoldExpiry(seats: PricedSeat[]): Date | null {
   }, null);
 }
 
-/** A booking can be confirmed only while every seat is still held (or already booked). */
+/**
+ * A booking can be confirmed only while every seat is still held (or already
+ * booked). A booking that no longer owns any seat (for example because a later
+ * checkout re-attached them) must not be confirmed as an empty, paid booking.
+ */
 export function canConfirmSeats(seatStatuses: string[]): boolean {
-  return seatStatuses.every((status) => status === "HELD" || status === "BOOKED");
+  return seatStatuses.length > 0 && seatStatuses.every((status) => status === "HELD" || status === "BOOKED");
 }
 
 export const CONFIRMED = "CONFIRMED";

@@ -42,7 +42,9 @@ export default async function CheckoutSuccessPage({
   return (
     <main className="mx-auto max-w-3xl px-4 py-10">
       <div className="rounded-2xl border border-border bg-panel p-6 shadow-glow">
-        <p className="text-[11px] uppercase tracking-[0.2em] text-gold">Booking Confirmed</p>
+        <p className="text-[11px] uppercase tracking-[0.2em] text-gold">
+          {booking.status === CONFIRMED ? "Booking Confirmed" : "Booking Pending"}
+        </p>
         <h1 className="mt-1 text-2xl font-semibold">{booking.show.movie.title}</h1>
         <p className="text-sm text-muted">
           {booking.show.hall.cinema.name} · {booking.show.hall.name} · {new Date(booking.show.startsAt).toLocaleString()}

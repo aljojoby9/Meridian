@@ -14,7 +14,7 @@ import type {
   PaymentGateway,
 } from "@/modules/booking/application/ports";
 import { GetPaymentStatus, ReconcilePaidCheckout } from "@/modules/booking/application/reconcile-paid-checkout";
-import { earliestHoldExpiry, totalPrice } from "@/modules/booking/domain/booking";
+import { canConfirmSeats, earliestHoldExpiry, totalPrice } from "@/modules/booking/domain/booking";
 import { NoActiveHoldError, PaymentsNotConfiguredError, SeatsNoLongerHeldError, ShowNotFoundError } from "@/modules/booking/domain/errors";
 
 const NOW = new Date("2026-01-01T20:00:00.000Z");
@@ -71,6 +71,12 @@ describe("booking rules", () => {
     expect(totalPrice(seats)).toBe(3600);
     expect(earliestHoldExpiry(seats)).toBe(b);
     expect(earliestHoldExpiry([])).toBeNull();
+  });
+
+  it("confirms only while every seat is held or booked, and never with no seats", () => {
+    expect(canConfirmSeats(["HELD", "BOOKED"])).toBe(true);
+    expect(canConfirmSeats(["HELD", "AVAILABLE"])).toBe(false);
+    expect(canConfirmSeats([])).toBe(false);
   });
 });
 
